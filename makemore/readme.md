@@ -82,5 +82,17 @@ BUG:
 ```
 
 
+BUG 封装线性模型的时候，导致没有训练现象模型
+```python
+
+    def parameters(self):
+        # return [self.w]+[self.b] if self.b is not None else []
+        
+        return **[self.w]+**[self.b] if self.b is not None else []
+    
+    def parameters(self):
+        return [self.w,self.b] if self.b is not None else [self.w]
+```
+
 
 

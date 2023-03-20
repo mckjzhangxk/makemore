@@ -54,11 +54,14 @@ hiddenSize=200
 
 
 
-generater=torch.Generator()
-generater.manual_seed(2147483647)
+# generater=torch.Generator()
+# generater.manual_seed(2147483647)
+
+generater=None
+torch.manual_seed(2147483647)
 W=torch.randn((Vsize,embSize),generator=generater)
 
-W1=torch.randn((embSize*contextSize,hiddenSize),generator=generater)*(5/3)/(hiddenSize**0.5)
+W1=torch.randn((embSize*contextSize,hiddenSize),generator=generater) *(5/3)/(hiddenSize**0.5)
 b1=torch.randn((hiddenSize,),generator=generater)
 
 W2=torch.randn((hiddenSize,Vsize),generator=generater)*0.01
@@ -123,9 +126,12 @@ lr=0.1
 bacthSize=32
 
 # steps=int(10*(len(Xtr)/bacthSize))
-steps=200000
+steps=20000
 devLoss=[]
 offset=0
+
+print(f"batchsize:{bacthSize},embsize:{embSize},hiddensize:{hiddenSize},blocksize:{contextSize}")
+print("缩放weight+soft")
 for step in range(steps):
     idx=torch.randint(0,Xtr.shape[0],(bacthSize,),generator=generater)
     xs_batch=Xtr[idx]
