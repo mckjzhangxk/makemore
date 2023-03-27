@@ -1,6 +1,7 @@
 import random
 import torch
 import torch.nn.functional as F
+from wavenet.weavenet_fix import WaveNet
 
 class Module():
     def parameters(self):
@@ -98,9 +99,10 @@ class SequenceContainer(Module):
             layer.training=True
             for p in layer.parameters():
                 p.requires_grad=True
-    def val(self):
+    def eval(self):
         for layer in self.layers:
             layer.training = False
+    # 这里应该返回iter,我返回了数组，所有造成与torch不一致的表现
     def parameters(self):
         params=[p for layer in self.layers for p in layer.parameters() ]
         return params
@@ -153,16 +155,16 @@ def splitLoss(split):
     if split=="train":
         model.train()
     else:
-        model.val()
+        model.eval()
     loss=F.cross_entropy(model(xs),ys).item()
     return loss
 
 hparams={
         "contextSize":8,
         "embSize":16,
-        "hiddenSize":256,
+        "hiddenSize":32,
         "steps":200000,
-        "batch_size":64,
+        "batch_size":32,
         "Wgain":5/3,
         "softmax_gain":0.01
 }
@@ -223,10 +225,15 @@ models=[
         LinearLayer(2 * hiddenSize, hiddenSize, bias=False), BatchNorm1D(hiddenSize), Tanh(),
         FlattenConsecutive(2),
         LinearLayer(2*hiddenSize, ds.VSIZE, gain=hparams["softmax_gain"], bias=False), BatchNorm1D(ds.VSIZE)
-    ])
-
+    ]),
+    # bug.设置成了4,4能感知16个， 这里应该设置为3
+    WaveNet(ds.VSIZE,hiddenSize,1,3)
 ]
 model=models[-1]
+
+def zeros_grad(model):
+    for p in model.parameters():
+       p.grad=None
 
 # model=SequenceContainer([
 #     EmbedingLayer(ds.VSIZE,embSize),
@@ -258,7 +265,7 @@ print(f"hparams:{hparams}")
 print()
 
 model.train()
-parameters=model.parameters()
+
 for step in range(hparams["steps"]):
     idx=torch.randint(0,Xtr.shape[0],(hparams["batch_size"],),generator=None)
     xs_batch=Xtr[idx]
@@ -268,13 +275,16 @@ for step in range(hparams["steps"]):
     logit=model(xs_batch)
     nll=F.cross_entropy(logit,ys_batch)
 
-    model.zero_grads()
+    # model.zero_grads()
+    zeros_grad(model)
     nll.backward()
 
-    lr = 0.1 if step < 100000 else 0.01
-    for p in parameters:
+    lr = 1 if step < 100000 else 0.01
+    for p in model.parameters():
+       if p.grad == None:
+           continue
        p.data-=lr*p.grad
-    if( step%2000==0):
+    if( step%200==0):
         train_loss=nll.item()
         dev_loss=splitLoss('dev')
         print(f'{step:7d}/{hparams["steps"]:7d} train_loss {train_loss:.4f},dev_loss {dev_loss:.4f}')
@@ -286,6 +296,8 @@ print("--------------training end---------------")
 final_train_loss=splitLoss('train')
 final_dev_loss=splitLoss('dev')
 print(f"train loss {final_train_loss:.4f}, dev loss {final_dev_loss:.4f}")
+torch.save(model.state_dict(), "wavenet_model.pth")
+
 # #
 # x=torch.randint(0,ds.VSIZE,(128,3))
 # y=model(x)

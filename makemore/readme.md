@@ -88,11 +88,17 @@ BUG 封装线性模型的时候，导致没有训练现象模型
     def parameters(self):
         # return [self.w]+[self.b] if self.b is not None else []
         
-        return **[self.w]+**[self.b] if self.b is not None else []
+        return [self.w]+[self.b] if self.b is not None else []
     
     def parameters(self):
         return [self.w,self.b] if self.b is not None else [self.w]
 ```
 
 
+```
+wavenet总结
 
+A.局部的receive-filed=K+(K-1)*(dilation-1)
+B.输出的长度会相对输入减少 receive-filed-1,也就是 (k-1)*(dialation-1)
+C. 全局R=(r) + (r{-1}-1) + (r{-2}-1) + (r{-3}-1)+ (r{-4}-1)+ …….
+```
