@@ -107,7 +107,13 @@ class MANN(nn.Module):
         #############################
         #### YOUR CODE GOES HERE ####
         #############################
+        N=preds.shape[-1]
+        logits=preds[:,-1,:,:].contiguous().view(-1,N) #(B,N,N)
+        labels=labels[:,-1,:,:].contiguous().view(-1,N) #(B,N,N)
+        labels=torch.argmax(labels,dim=1)
 
+        loss=nn.functional.cross_entropy(logits,labels)
+        return loss
         # SOLUTION:        
 
 

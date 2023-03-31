@@ -127,7 +127,7 @@ class DataGenerator(object):
         images=torch.zeros(B,N,K+1,784,dtype=torch.float32)
         labels=torch.zeros(B,N,K+1,N,dtype=torch.float32)
         for b in range(B):
-            classes_samples=[folders[random.randint(0, len(folders))] for i in range(N)]
+            classes_samples=[folders[random.randint(0, len(folders)-1)] for i in range(N)]
 
             nk_tensor=torch.zeros(N,K+1,784,dtype=torch.float32)
             nk_tensor_label=torch.zeros(N,K+1,N,dtype=torch.float32)
@@ -139,6 +139,13 @@ class DataGenerator(object):
 
                 nk_tensor[class_index]=torch.stack([torch.from_numpy( np.array(Image.open(p))).view(-1).float() for p in K_imgs_paths])
                 nk_tensor_label[class_index]= torch.nn.functional.one_hot(torch.tensor(class_index), num_classes=N)
+
+            idx=list(range(N))
+            sh_idx=idx[:]
+            random.shuffle(sh_idx)
+
+            nk_tensor[idx,-1]=nk_tensor[sh_idx,-1]
+            nk_tensor_label[idx,-1]=nk_tensor_label[sh_idx,-1]
             images[b]=nk_tensor
             labels[b]=nk_tensor_label
         images.transpose_(1, 2)
