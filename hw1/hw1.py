@@ -68,15 +68,16 @@ class MANN(nn.Module):
         K=input_images.shape[1]-1
         B=input_labels.shape[0]
 
-        Dtrain=torch.cat([input_images[:,:K,:,:],input_labels[:,:K,:,:]],dim=3)
-        Dtest=torch.cat([input_images[:,K:K+1,:,:],torch.zeros_like(input_labels[:,K::K+1,:,:])],dim=3)
+        Dtrain=torch.cat([input_images[:,0:K,:,:],input_labels[:,0:K,:,:]],dim=3)
+        Dtest=torch.cat([input_images[:,K:K+1,:,:],torch.zeros_like(input_labels[:,K:K+1,:,:])],dim=3)
 
         # 初始化隐藏状态和记忆单元
         # h0 = torch.zeros( 1,B, self.hidden_size).to(device=input_labels.device)
         # c0 = torch.zeros( 1,B, self.hidden_size).to(device=input_labels.device)
 
-        Dtrain=Dtrain.view(B,-1,Dtrain.shape[-1])
-        Dtest = Dtrain.view(B, -1, Dtest.shape[-1])
+        Dtrain= Dtrain.view(B,-1,Dtrain.shape[-1])
+        # bug 写成Dtest = Dtrain.view(B, -1, Dtest.shape[-1])
+        Dtest = Dtest.view(B, -1, Dtest.shape[-1])
 
         x=torch.cat((Dtrain,Dtest),dim=1)
         y1, cells_1=self.layer1(x)
