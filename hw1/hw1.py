@@ -156,7 +156,7 @@ def model_eval(images, labels, model):
 
 
 def main(config):
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     writer = SummaryWriter(config.logdir)
 
     # Download Omniglot Dataset

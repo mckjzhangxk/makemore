@@ -11,3 +11,5 @@ x.transpose_(1,0)
 print(x)
 
 print(torch.cuda.is_available())
+
+print(torch.cuda.is_available())
