@@ -18,6 +18,7 @@ class MANN(nn.Module):
         
         def initialize_weights(model):
             nn.init.xavier_uniform_(model.weight_ih_l0) #这是4个gate的W
+            nn.init.xavier_uniform_(model.weight_hh_l0) #这是4个gate的W
             nn.init.zeros_(model.bias_hh_l0)  #这应该是初始cell输入？
             nn.init.zeros_(model.bias_ih_l0)  #这是4个gate的bias
     
@@ -65,21 +66,39 @@ class MANN(nn.Module):
         #############################
         #### YOUR CODE GOES HERE ####
         #############################
-        K=input_images.shape[1]-1
+        K=self.samples_per_class
         B=input_labels.shape[0]
+        N=self.num_classes
+        
+        # 剽窃的答案
+        # input_labels_1=input_labels[:,0:K,:,:]
+        # input_labels_2=torch.zeros_like(input_labels[:,K:K+1,:,:])
+        # input_labels=torch.cat((input_labels_1,input_labels_2),dim=1)
+        # x=torch.cat((input_images,input_labels),dim=3)
+        # x=x.view(B,-1,x.shape[-1])
+        #####
 
-        Dtrain=torch.cat([input_images[:,0:K,:,:],input_labels[:,0:K,:,:]],dim=3)
-        Dtest=torch.cat([input_images[:,K:K+1,:,:],torch.zeros_like(input_labels[:,K:K+1,:,:])],dim=3)
-
-        # 初始化隐藏状态和记忆单元
-        # h0 = torch.zeros( 1,B, self.hidden_size).to(device=input_labels.device)
-        # c0 = torch.zeros( 1,B, self.hidden_size).to(device=input_labels.device)
-
-        Dtrain= Dtrain.view(B,-1,Dtrain.shape[-1])
-        # bug 写成Dtest = Dtrain.view(B, -1, Dtest.shape[-1])
-        Dtest = Dtest.view(B, -1, Dtest.shape[-1])
-
+        #我的答案
+        Dtrain=torch.cat((input_images[:,0:K,:,:],input_labels[:,0:K,:,:]),dim=3)
+        Dtest=torch.cat((input_images[:,K:K+1,:,:],torch.zeros_like(input_labels[:,K:K+1,:,:])),dim=3)  
         x=torch.cat((Dtrain,Dtest),dim=1)
+        x=x.view(B,-1,x.shape[-1])
+        #####
+        
+        
+        ####################bug code####################
+        # Dtrain=torch.cat([input_images[:,0:K,:,:],input_labels[:,0:K,:,:]],dim=3)
+        # Dtest=torch.cat([input_images[:,K:K+1,:,:],torch.zeros_like(input_labels[:,K:K+1,:,:])],dim=3)
+
+        
+        # Dtrain= Dtrain.view(B,-1,Dtrain.shape[-1])
+        # # bug 写成Dtest = Dtrain.view(B, -1, Dtest.shape[-1])
+        # Dtest = Dtest.view(B, -1, Dtest.shape[-1])
+        # # 先train 然后test排列，而不是 train,test交替排列
+        # x=torch.cat((Dtrain,Dtest),dim=1)
+        ####################
+        
+        # 
         y1, cells_1=self.layer1(x)
 
 
@@ -87,7 +106,7 @@ class MANN(nn.Module):
         # c0 = torch.zeros( 1,B, self.num_classes).to(device=input_labels.device)
         y2,cells_2=self.layer2(y1)
 
-        y2=y2.view(B,K+1,self.num_classes,self.num_classes)
+        y2=y2.view(B,K+1,N,N)
         return y2
         # SOLUTION:
 
@@ -108,12 +127,13 @@ class MANN(nn.Module):
         #############################
         #### YOUR CODE GOES HERE ####
         #############################
-        N=preds.shape[-1]
-        logits=preds[:,-1,:,:].contiguous().view(-1,N) #(B,N,N)
-        labels=labels[:,-1,:,:].contiguous().view(-1,N) #(B,N,N)
-        labels=torch.argmax(labels,dim=1)
+        N=self.num_classes
+        logits=preds[:,-1,:,:]
+        labels=labels[:,-1,:,:].argmax(dim=-1)
+        
+        logits=logits.transpose(1,2)
 
-        loss=nn.functional.cross_entropy(logits,labels)
+        loss=nn.functional.cross_entropy(logits,labels,reduction='mean')
         return loss
         # SOLUTION:        
 
@@ -123,6 +143,7 @@ def train_step(images, labels, model, optim):
     predictions = model(images, labels)
     loss = model.loss_function(predictions, labels)
     
+    print(loss)
     optim.zero_grad()
     loss.backward()
     optim.step()
@@ -182,10 +203,10 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--num_classes', type=int, default=5)
     parser.add_argument('--num_samples', type=int, default=1)
-    parser.add_argument('--meta_batch_size', type=int, default=32)
+    parser.add_argument('--meta_batch_size', type=int, default=128)
     parser.add_argument('--logdir', type=str, 
                         default='run/log')
-    parser.add_argument('--training_steps', type=int, default=10000)
+    parser.add_argument('--training_steps', type=int, default=50000)
     parser.add_argument('--log_every', type=int, default=100)
     parser.add_argument('--model_size', type=int, default=128)
     main(parser.parse_args())

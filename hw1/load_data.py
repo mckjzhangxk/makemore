@@ -120,34 +120,37 @@ class DataGenerator(object):
         #############################
         #### YOUR CODE GOES HERE ####
         #############################
+       
+    
         N=self.num_classes
         K=self.num_samples_per_class
         B=batch_size
 
         images=torch.zeros(B,N,K+1,784,dtype=torch.float32)
         labels=torch.zeros(B,N,K+1,N,dtype=torch.float32)
+        
+        # random.seed(5533)
         for b in range(B):
-            classes_samples=[folders[random.randint(0, len(folders)-1)] for i in range(N)]
+            task_folders=[folders[random.randint(0, len(folders)-1)] for i in range(N)]
 
-            nk_tensor=torch.zeros(N,K+1,784,dtype=torch.float32)
-            nk_tensor_label=torch.zeros(N,K+1,N,dtype=torch.float32)
-            for class_index,class_path in enumerate(classes_samples):
+            task_images=torch.zeros(N,K+1,784,dtype=torch.float32)
+            task_labels=torch.zeros(N,K+1,N,dtype=torch.float32)
+            for class_index,class_path in enumerate(task_folders):
                 imgs_paths=os.listdir(class_path)
                 # 从imgs_paths 选择K+1个路径 ，这里考虑不放回
                 K_imgs_paths=[os.path.join(class_path, imgs_paths[r]) for r in random.sample(list(range(len(imgs_paths))),K+1)]
-
-
-                nk_tensor[class_index]=torch.stack([torch.from_numpy( np.array(Image.open(p))).view(-1).float() for p in K_imgs_paths])
-                nk_tensor_label[class_index]= torch.nn.functional.one_hot(torch.tensor(class_index), num_classes=N)
+                #归一化处理？？
+                task_images[class_index]=torch.stack([torch.tensor(image_file_to_array(p,28*28)) for p in K_imgs_paths])
+                task_labels[class_index]= torch.nn.functional.one_hot(torch.tensor(class_index), num_classes=N)
 
             idx=list(range(N))
             sh_idx=idx[:]
             random.shuffle(sh_idx)
 
-            nk_tensor[idx,-1]=nk_tensor[sh_idx,-1]
-            nk_tensor_label[idx,-1]=nk_tensor_label[sh_idx,-1]
-            images[b]=nk_tensor
-            labels[b]=nk_tensor_label
+            task_images[idx,K]=task_images[sh_idx,K]
+            task_labels[idx,K]=task_labels[sh_idx,K]
+            images[b]=task_images
+            labels[b]=task_labels
         images.transpose_(1, 2)
         labels.transpose_(1, 2)
         return images,labels
