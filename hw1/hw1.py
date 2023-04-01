@@ -143,7 +143,6 @@ def train_step(images, labels, model, optim):
     predictions = model(images, labels)
     loss = model.loss_function(predictions, labels)
     
-    print(loss)
     optim.zero_grad()
     loss.backward()
     optim.step()
@@ -193,6 +192,7 @@ def main(config):
             pred = torch.argmax(pred[:, -1, :, :], axis=2)
             labels = torch.argmax(labels[:, -1, :, :], axis=2)
             
+            print(train_loss.cpu().numpy(),test_loss.cpu().numpy())
             writer.add_scalar('Train Loss', train_loss.cpu().numpy(), step)
             writer.add_scalar('Test Loss', test_loss.cpu().numpy(), step)
             writer.add_scalar('Meta-Test Accuracy', 
