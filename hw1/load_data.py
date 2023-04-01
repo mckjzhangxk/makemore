@@ -153,5 +153,5 @@ class DataGenerator(object):
             labels[b]=task_labels
         images.transpose_(1, 2)
         labels.transpose_(1, 2)
-        return images,labels
+        return images.to(self.device),labels.to(self.device)
         # SOLUTION:
