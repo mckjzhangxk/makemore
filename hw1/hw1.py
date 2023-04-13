@@ -48,7 +48,38 @@ class MANN(nn.Module):
         #                batch_first=True,
         #                gpu_id=0,
         #                )
-
+    def forward_fix(self, input_images, input_labels):
+        K=self.samples_per_class
+        B=input_labels.shape[0]
+        N=self.num_classes
+        
+        Dtrain=torch.cat((input_images[:,0:K,:,:],input_labels[:,0:K,:,:]),dim=3)
+        Dtest=torch.cat((input_images[:,K:K+1,:,:],torch.zeros_like(input_labels[:,K:K+1,:,:])),dim=3)  
+        
+        # 修正,独立predict每个 test
+        xtrain=Dtrain.view(B,K*N,Dtrain.shape[-1])
+        y1,state_1=self.layer1(xtrain)
+        assert tuple(y1.shape)==(B,K*N,self.hidden_size)
+        y2,state_2=self.layer2(y1)
+        assert tuple(y2.shape)==(B,K*N,N)
+        
+        xtext=Dtest.view(B,1*N,Dtest.shape[-1])
+        
+        logits=[]
+        for n in range(N):
+            y_test_1,_=self.layer1(xtext[:,n:n+1,:],state_1)
+            y_test_2,_=self.layer2(y_test_1,state_2)  #(B,1,N)
+            assert tuple(y_test_2.shape)==(B,1,N)
+            logits.append(y_test_2)
+        
+        logits=torch.stack(logits,dim=1)    #(B,N,N)
+        assert tuple(logits.shape)==(B,N,N)
+        y2=torch.cat((y2,logits),dim=1)
+        assert tuple(y2.shape)==(B,K*N+N,N)
+        
+        y2=y2.view(B,K+1,N,N)
+        # 修正完成 
+        return y2
     def forward(self, input_images, input_labels):
         """
         MANN
@@ -82,9 +113,10 @@ class MANN(nn.Module):
         Dtrain=torch.cat((input_images[:,0:K,:,:],input_labels[:,0:K,:,:]),dim=3)
         Dtest=torch.cat((input_images[:,K:K+1,:,:],torch.zeros_like(input_labels[:,K:K+1,:,:])),dim=3)  
         x=torch.cat((Dtrain,Dtest),dim=1)
-        x=x.view(B,-1,x.shape[-1])
+        x=x.view(B,K*N+N,x.shape[-1]) 
         #####
         
+ 
         
         ####################bug code####################
         # Dtrain=torch.cat([input_images[:,0:K,:,:],input_labels[:,0:K,:,:]],dim=3)
@@ -94,7 +126,7 @@ class MANN(nn.Module):
         # Dtrain= Dtrain.view(B,-1,Dtrain.shape[-1])
         # # bug 写成Dtest = Dtrain.view(B, -1, Dtest.shape[-1])
         # Dtest = Dtest.view(B, -1, Dtest.shape[-1])
-        # # 先train 然后test排列，而不是 train,test交替排列
+        # # 先train 然后test排列，而不是 train,test交替排列,最终导致模型什么都没有学到！！
         # x=torch.cat((Dtrain,Dtest),dim=1)
         ####################
         
@@ -192,13 +224,18 @@ def main(config):
             pred = torch.argmax(pred[:, -1, :, :], axis=2)
             labels = torch.argmax(labels[:, -1, :, :], axis=2)
             
-            print(train_loss.cpu().numpy(),test_loss.cpu().numpy())
+            trloss,tsloss,acc=train_loss.cpu().numpy(),test_loss.cpu(),pred.eq(labels).double().mean().item()
+            print(f"{step}: trainLoss {trloss:.4f},test loss {tsloss:.4f}, acc:{acc:.3f}")
             writer.add_scalar('Train Loss', train_loss.cpu().numpy(), step)
             writer.add_scalar('Test Loss', test_loss.cpu().numpy(), step)
             writer.add_scalar('Meta-Test Accuracy', 
                               pred.eq(labels).double().mean().item(),
                               step)
-
+    torch.save(
+        dict(model_parameters=model.state_dict(),               
+        optimizer_state_dict=optim.state_dict()),
+        f"{config.num_classes}_way-{config.num_samples}_shot_{config.training_steps}.pt"
+    )
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--num_classes', type=int, default=5)
@@ -206,7 +243,7 @@ if __name__=='__main__':
     parser.add_argument('--meta_batch_size', type=int, default=128)
     parser.add_argument('--logdir', type=str, 
                         default='run/log')
-    parser.add_argument('--training_steps', type=int, default=50000)
+    parser.add_argument('--training_steps', type=int, default=10000)
     parser.add_argument('--log_every', type=int, default=100)
     parser.add_argument('--model_size', type=int, default=128)
     main(parser.parse_args())

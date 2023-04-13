@@ -2,7 +2,6 @@ import numpy as np
 import os
 import random
 import torch
-from PIL import Image
 
 def get_images(paths, labels, nb_samples=None, shuffle=True):
     """

@@ -1,0 +1,7 @@
+*.pt
+*.pkl
+evnet.out.*
+omniglot_resized
+omniglot_resized.zip
+__pycache__
+log/
